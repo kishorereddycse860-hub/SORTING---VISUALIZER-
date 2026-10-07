@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Algorithms — SortLab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+  <div class="bgfx-layer" id="bgfxLayer"></div>
+  <div class="page-transition-overlay" id="ptOverlay"></div>
+
+  <header class="site-header">
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span><span class="current">Algorithms</span>
+    </div>
+    <div class="header-right">
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="algorithms.html">Algorithms</a>
+      </nav>
+      <div class="algo-search-box">
+        <input type="text" id="algoSearchInput" placeholder="Search algorithm, press Enter…" autocomplete="off">
+        <span class="algo-search-hint" id="algoSearchHint">no match found</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="page-heading">
+      <h1>Choose an Algorithm</h1>
+      <p id="algoIntro">Classical sorting algorithms — pick one to read how it works, then jump into the interactive visualizer.</p>
+    </div>
+
+    <div class="algo-grid" id="algoGrid"></div>
+  </main>
+
+  <footer class="site-footer">
+    <span>SortLab · Built with HTML / CSS / vanilla JS</span>
+    <span id="algoCountFoot">— algorithms available</span>
+  </footer>
+
+<script src="assets/data.js"></script>
+<script>
+  function normalizeQuery(s){
+    return s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  function findAlgoSlug(query){
+    const q = normalizeQuery(query);
+    if (!q) return null;
+    // exact slug or exact name match first
+    for (const slug of ALGO_LIST){
+      const nameNorm = normalizeQuery(ALGO_DATA[slug].name);
+      if (slug === q || nameNorm === q) return slug;
+    }
+    // partial match — query is contained in the name, or vice versa
+    for (const slug of ALGO_LIST){
+      const nameNorm = normalizeQuery(ALGO_DATA[slug].name);
+      if (nameNorm.includes(q) || q.includes(slug)) return slug;
+    }
+    return null;
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('algoCountFoot').textContent = `${ALGO_LIST.length} algorithms available`;
+    const grid = document.getElementById('algoGrid');
+    ALGO_LIST.forEach((slug, idx) => {
+      const algo = ALGO_DATA[slug];
+      const card = document.createElement('a');
+      card.href = `algorithm.html?algo=${slug}`;
+      card.className = 'blueprint-panel algo-card';
+      card.innerHTML = `
+        <div class="index">${String(idx+1).padStart(2,'0')}</div>
+        <h3>${algo.name}</h3>
+        <div class="tagline">${algo.tagline}</div>
+        <div class="go">View details →</div>
+      `;
+      grid.appendChild(card);
+    });
+
+    const searchInput = document.getElementById('algoSearchInput');
+    const searchHint = document.getElementById('algoSearchHint');
+    let hintTimer = null;
+
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const slug = findAlgoSlug(searchInput.value);
+      if (slug){
+        window.location.href = `algorithm.html?algo=${slug}`;
+      } else {
+        searchHint.classList.add('show');
+        clearTimeout(hintTimer);
+        hintTimer = setTimeout(() => searchHint.classList.remove('show'), 2000);
+      }
+    });
+    searchInput.addEventListener('input', () => searchHint.classList.remove('show'));
+  });
+</script>
+
+<script src="assets/chatbot.js"></script>
+<script src="assets/tunnelfx.js"></script>
+<script src="assets/bgfx.js"></script>
+<script src="assets/streetfx.js"></script>
+<script src="assets/transitions.js"></script>
+</body>
+</html>

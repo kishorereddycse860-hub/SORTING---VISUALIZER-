@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visualize — SortLab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+  <div class="bgfx-layer" id="bgfxLayer"></div>
+  <div class="page-transition-overlay" id="ptOverlay"></div>
+
+  <header class="site-header">
+    <div class="breadcrumb">
+      <a href="index.html">Home</a><span class="sep">/</span>
+      <a href="algorithms.html">Algorithms</a><span class="sep">/</span>
+      <a href="#" id="crumbAlgoLink">…</a><span class="sep">/</span>
+      <span class="current">Visualize</span>
+    </div>
+    <nav class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="algorithms.html">Algorithms</a>
+    </nav>
+  </header>
+
+  <main class="page">
+    <div class="page-heading">
+      <h1 id="pageTitle">Visualizing…</h1>
+      <p id="pageTagline">—</p>
+      <span class="pill amber" id="gapBadge" style="display:none;">gap = —</span>
+    </div>
+
+    <div class="viz-grid">
+
+      <!-- MAIN COLUMN -->
+      <div>
+        <div class="viz-toolbar">
+          <select class="viz-select" id="algoSelect"></select>
+          <button class="btn btn-outline btn-sm" id="generateBtn">↻ New Array</button>
+          <button class="btn btn-primary btn-sm" id="playBtn">▶ Play</button>
+          <button class="btn btn-outline btn-sm" id="stepBackBtn">← Previous</button>
+          <button class="btn btn-outline btn-sm" id="stepFwdBtn">Next →</button>
+          <button class="btn btn-ghost btn-sm" id="resetBtn">Reset</button>
+
+          <div class="slider-group">
+            <label for="sizeSlider">Size</label>
+            <input type="range" id="sizeSlider" min="8" max="60" value="28">
+          </div>
+          <div class="slider-group">
+            <label for="speedSlider">Speed</label>
+            <input type="range" id="speedSlider" min="1" max="10" value="4">
+          </div>
+        </div>
+
+        <div class="custom-input-row">
+          <input type="text" id="customArrayInput" placeholder="Enter numbers, e.g. 34, 7, 23, 90, 12, 56" autocomplete="off">
+          <button class="btn btn-outline btn-sm" id="useCustomBtn">Use This Array</button>
+          <span class="input-hint" id="inputHint">2–60 numbers, comma or space separated</span>
+        </div>
+
+        <div class="blueprint-panel viz-frame viz-3d" id="arrayVizFrame">
+          <div class="array-boxes" id="arrayBoxes"></div>
+          <div class="legend">
+            <div class="legend-item"><span class="swatch" style="background:#3A4568"></span>unsorted</div>
+            <div class="legend-item"><span class="swatch" style="background:var(--amber)"></span>comparing</div>
+            <div class="legend-item"><span class="swatch" style="background:var(--red-bar)"></span>swapping</div>
+            <div class="legend-item"><span class="swatch" style="background:var(--violet-bar)"></span>reference / pivot</div>
+            <div class="legend-item"><span class="swatch" style="background:var(--green)"></span>sorted</div>
+          </div>
+        </div>
+
+        <div class="blueprint-panel merge-tree-panel" id="mergeTreeFrame" style="display:none;">
+          <div class="merge-tree-canvas" id="mergeTreeCanvas"></div>
+          <div class="legend" style="margin-top:12px;">
+            <div class="legend-item"><span class="swatch" style="background:var(--violet-bar)"></span>base case (single element)</div>
+            <div class="legend-item"><span class="swatch" style="background:var(--amber)"></span>comparing</div>
+            <div class="legend-item"><span class="swatch" style="background:var(--red-bar)"></span>placing</div>
+            <div class="legend-item"><span class="swatch" style="background:var(--green)"></span>merged / sorted</div>
+          </div>
+        </div>
+
+        <div class="stats-row">
+          <div class="blueprint-panel stat-box">
+            <div class="stat-label">Comparisons</div>
+            <div class="stat-value" id="statCompare">0</div>
+          </div>
+          <div class="blueprint-panel stat-box">
+            <div class="stat-label">Swaps / Writes</div>
+            <div class="stat-value" id="statSwap">0</div>
+          </div>
+          <div class="blueprint-panel stat-box">
+            <div class="stat-label">Step</div>
+            <div class="stat-value" id="statStep" style="font-size:16px;">0 / 0</div>
+          </div>
+          <div class="blueprint-panel stat-box">
+            <div class="stat-label">Status</div>
+            <div class="stat-value" id="statStatus" style="color:var(--slate); font-size:14px;">idle</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SIDE COLUMN -->
+      <div class="side-stack">
+        <div id="liveLogSection">
+          <div class="section-label">Live Log</div>
+          <div class="console" id="consoleLog"></div>
+        </div>
+
+        <div class="pass-console-wrap" id="passLogSection">
+          <div class="section-label">Pass-by-Pass Steps</div>
+          <div class="pass-console" id="passLog"></div>
+        </div>
+
+        <div class="blueprint-panel vars-box" id="varsBox">
+          <div class="section-label" style="margin-bottom:8px;">Variables</div>
+          <div class="vars-grid" id="varsGrid"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="merge-tree-section" id="mergeTreeSection">
+      <div class="section-label">Recursion Tree · Divide &amp; Merge</div>
+      <div class="merge-tree-wrap" id="mergeTreeWrap">
+        <div class="merge-tree-grid" id="mergeTreeGrid"></div>
+      </div>
+    </div>
+
+    <div class="merge-tree-section" id="quickTreeSection">
+      <div class="section-label">Recursion Tree · Partition</div>
+      <div class="merge-tree-wrap" id="quickTreeWrap">
+        <div class="merge-tree-grid" id="quickTreeGrid"></div>
+      </div>
+      <div class="section-label" style="margin-top:20px;">Final Sorted Array (in-place result)</div>
+      <div class="tree-final-array" id="quickTreeFinalRow"></div>
+    </div>
+
+    <div class="merge-tree-section" id="heapCreationSection">
+      <div class="section-label">Creation of Heap Sort <span class="heap-phase-label">— building the max-heap, one insertion at a time</span></div>
+      <div class="merge-tree-wrap" id="heapCreationWrap">
+        <div class="heap-creation-stages" id="heapCreationStages"></div>
+      </div>
+    </div>
+
+    <div class="merge-tree-section" id="heapExtractionSection">
+      <div class="section-label">Extraction <span class="heap-phase-label">— repeatedly removing the root and restoring the heap</span></div>
+      <div class="merge-tree-wrap" id="heapExtractionWrap">
+        <div class="heap-creation-stages" id="heapExtractionStages"></div>
+      </div>
+    </div>
+
+    <div class="merge-tree-section" id="shellGapSection">
+      <div class="section-label">Gap-by-Gap Passes <span class="heap-phase-label">— comparing and swapping elements that are 'gap' positions apart</span></div>
+      <div class="merge-tree-wrap" id="shellGapWrap">
+        <div class="heap-creation-stages" id="shellGapStages"></div>
+      </div>
+      <div class="legend" style="margin-top:12px;">
+        <div class="legend-item"><span class="swatch" style="background:var(--amber)"></span>compared, no swap needed</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--red-bar)"></span>compared and swapped</div>
+      </div>
+    </div>
+
+    <div class="merge-tree-section" id="passWorkSection">
+      <div class="section-label"><span id="passWorkTitle">Pass-by-Pass Working</span> <span class="heap-phase-label" id="passWorkSub"></span></div>
+      <div class="merge-tree-wrap" id="passWorkWrap">
+        <div class="heap-creation-stages" id="passWorkStages"></div>
+      </div>
+      <div class="legend" id="passWorkLegend" style="margin-top:12px;">
+      </div>
+    </div>
+
+    <div class="code-section-full">
+      <div class="section-label code-label-row">
+        <span>C++ Code · step-by-step</span>
+        <button class="code-expand-btn" id="codeExpandBtn" type="button">⛶ Full screen</button>
+      </div>
+      <div class="code-panel" id="codePanel"></div>
+    </div>
+  </main>
+
+  <!-- ---------------- full-screen C++ code overlay ---------------- -->
+  <div class="code-modal-backdrop" id="codeModalBackdrop">
+    <div class="code-modal">
+      <div class="code-modal-header">
+        <span id="codeModalTitle">C++ Code</span>
+        <button class="code-modal-close" id="codeModalClose" type="button">✕ Close</button>
+      </div>
+      <div class="code-panel code-panel-large" id="codePanelLarge"></div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <span>SortLab · Built with HTML / CSS / vanilla JS</span>
+    <span id="clock">ready</span>
+  </footer>
+
+<script src="assets/data.js"></script>
+<script src="assets/sorter.js"></script>
+<script src="assets/workflow.js"></script>
+<script src="assets/codeviz.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  function getAlgoSlugFromUrl(){
+    const params = new URLSearchParams(window.location.search);
+    const slug = params.get('algo');
+    return (slug && ALGO_DATA[slug]) ? slug : 'bubble';
+  }
+
+  let currentAlgo = getAlgoSlugFromUrl();
+  let array = [];
+  let baseArraySnapshot = [];
+  let steps = [];
+  let stepIndex = 0;
+  let playing = false;
+  let playTimer = null;
+
+  const els = {};
+  ['arrayBoxes','algoSelect','generateBtn','playBtn','stepBackBtn','stepFwdBtn','resetBtn',
+   'sizeSlider','speedSlider','statCompare','statSwap','statStep','statStatus',
+   'consoleLog','codePanel','codePanelLarge','codeExpandBtn','codeModalBackdrop','codeModalClose','codeModalTitle',
+   'varsGrid','clock','customArrayInput','useCustomBtn','inputHint',
+   'pageTitle','pageTagline','crumbAlgoLink','passLog','gapBadge',
+   'mergeTreeSection','mergeTreeWrap','mergeTreeGrid',
+   'quickTreeSection','quickTreeWrap','quickTreeGrid','quickTreeFinalRow',
+   'heapCreationSection','heapCreationWrap','heapCreationStages',
+   'heapExtractionSection','heapExtractionWrap','heapExtractionStages',
+   'shellGapSection','shellGapWrap','shellGapStages',
+   'passWorkSection','passWorkWrap','passWorkStages','passWorkTitle','passWorkSub'].forEach(id => els[id] = document.getElementById(id));
+
+  function populateAlgoSelect(){
+    els.algoSelect.innerHTML = ALGO_LIST.map(slug =>
+      `<option value="${slug}" ${slug===currentAlgo?'selected':''}>${ALGO_DATA[slug].name}</option>`
+    ).join('');
+  }
+
+  function refreshHeaderForAlgo(){
+    const d = ALGO_DATA[currentAlgo];
+    els.pageTitle.textContent = `Visualizing: ${d.name}`;
+    els.pageTagline.textContent = d.tagline;
+    els.crumbAlgoLink.textContent = d.name;
+    els.crumbAlgoLink.href = `algorithm.html?algo=${currentAlgo}`;
+    document.title = `Visualize ${d.name} — SortLab`;
+    els.codeModalTitle.textContent = `${d.name} — C++ Code`;
+    renderCodePanel(els.codePanel, currentAlgo);
+    renderCodePanel(els.codePanelLarge, currentAlgo);
+  }
+
+  /* -------- variables mini panel (PythonTutor-style state view) -------- */
+  function renderVars(step){
+    if (!step){ els.varsGrid.innerHTML = `<div class="var-empty">— idle —</div>`; return; }
+    const rows = [];
+    if (step.type === 'compare' || step.type === 'swap'){
+      rows.push(['i', step.i]); rows.push(['j', step.j]);
+    } else if (step.type === 'overwrite'){
+      rows.push(['k', step.i]); rows.push(['value', step.value]);
+    } else if (step.type === 'pivot'){
+      rows.push(['index', step.i]);
+    } else if (step.type === 'sorted'){
+      rows.push(['locked idx', step.i]);
+    } else if (step.type === 'gap'){
+      rows.push(['gap', step.value]);
+    }
+    els.varsGrid.innerHTML = rows.length
+      ? rows.map(([k,v]) => `<div class="var-row"><span class="var-name">${k}</span><span class="var-val">${v}</span></div>`).join('')
+      : `<div class="var-empty">— idle —</div>`;
+  }
+
+  // ---------------- array generation ----------------
+  function generateArray(){
+    const size = parseInt(els.sizeSlider.value, 10);
+    array = Array.from({length:size}, () => Math.floor(Math.random()*95)+5);
+    baseArraySnapshot = array.slice();
+    rebuildStepsAndReset();
+    logLine({kind:'sys', tag:'SYS', text:`generated new array of size ${size}`});
+  }
+
+  let stepPassSize = [];
+
+  function computeStepPassSizes(){
+    const groups = buildPassGroups();
+    stepPassSize = new Array(steps.length).fill(1);
+    groups.forEach(group => {
+      group.forEach(({ index }) => { stepPassSize[index] = group.length; });
+    });
+  }
+
+  function rebuildStepsAndReset(){
+    pause();
+    if (currentAlgo === 'stooge' && baseArraySnapshot.length > 16){
+      baseArraySnapshot = baseArraySnapshot.slice(0, 16);
+      array = baseArraySnapshot.slice();
+      els.sizeSlider.value = 16;
+    }
+    steps = recordSortSteps(baseArraySnapshot, currentAlgo);
+    computeStepPassSizes();
+    renderPassLog();
+    goToStep(0, {clearLog:true});
+    updateAlgoLayout();
+  }
+
+  // ---------------- pass-by-pass step log (stacked array snapshots) ----------------
+  // A "pass" boundary is drawn right after a run of consecutive 'sorted'
+  // events — for Bubble/Selection/Insertion that lines up with a literal
+  // pass; for Merge/Quick/Heap it lines up with a natural phase boundary.
+  function buildPassGroups(){
+    const groups = [];
+    let current = [];
+    for (let i = 0; i < steps.length; i++){
+      current.push({ step: steps[i], index: i });
+      const isSorted = steps[i].type === 'sorted';
+      const nextIsSorted = (i + 1 < steps.length) && steps[i + 1].type === 'sorted';
+      if (isSorted && !nextIsSorted){
+        groups.push(current);
+        current = [];
+      }
+    }
+    if (current.length) groups.push(current);
+    return groups;
+  }
+
+  // walk every step once, recording the full array + highlight state AFTER
+  // each step, so the pass log can show a snapshot at any point in history
+  function computeSnapshots(){
+    const snapshots = [];
+    const working = baseArraySnapshot.slice();
+    const sortedSet = new Set();
+    for (let i = 0; i < steps.length; i++){
+      const step = steps[i];
+      let highlight = {};
+      if (step.type === 'compare'){
+        highlight = { compare:[step.i, step.j] };
+      } else if (step.type === 'swap'){
+        const tmp = working[step.i]; working[step.i] = working[step.j]; working[step.j] = tmp;
+        highlight = { swap:[step.i, step.j] };
+      } else if (step.type === 'overwrite'){
+        working[step.i] = step.value;
+        highlight = { swap:[step.i] };
+      } else if (step.type === 'sorted'){
+        sortedSet.add(step.i);
+      } else if (step.type === 'pivot'){
+        highlight = { pivot:[step.i] };
+      }
+      snapshots.push({ array: working.slice(), highlight, sortedSet: new Set(sortedSet) });
+    }
+    return snapshots;
+  }
+
+  function miniBoxesHtml(snapshot){
+    const { array, highlight, sortedSet } = snapshot;
+    return array.map((val, i) => {
+      const cls = ['mini-box'];
+      if (highlight.compare && highlight.compare.includes(i)) cls.push('compare');
+      if (highlight.swap && highlight.swap.includes(i)) cls.push('swap');
+      if (highlight.pivot && highlight.pivot.includes(i)) cls.push('pivot');
+      if (sortedSet.has(i)) cls.push('sorted');
+      return `<span class="${cls.join(' ')}">${val}</span>`;
+    }).join('');
+  }
+
+  function renderPassLog(){
+    if (!els.passLog) return;
+    if (!steps.length){
+      els.passLog.innerHTML = `<div class="pass-log-empty">— no steps yet —</div>`;
+      return;
+    }
+    const snapshots = computeSnapshots();
+    const groups = buildPassGroups();
+
+    els.passLog.innerHTML = groups.map((group, gi) => {
+      const rows = [];
+      group.forEach(({ step, index }) => {
+        if (step.type === 'swap' || step.type === 'overwrite'){
+          const snap = snapshots[index];
+          const label = step.type === 'swap'
+            ? `swapped arr[${step.i}] \u2194 arr[${step.j}]`
+            : `arr[${step.i}] = ${step.value}`;
+          rows.push(`<div class="pass-row" data-step-index="${index}">
+              <div class="pass-row-label">${label}</div>
+              <div class="mini-array">${miniBoxesHtml(snap)}</div>
+            </div>`);
+        }
+      });
+      if (!rows.length){
+        rows.push(`<div class="pass-row-note">no swaps this pass — already in order</div>`);
+      }
+      const lastIdx = group[group.length - 1].index;
+      const finalSnap = snapshots[lastIdx];
+      rows.push(`<div class="pass-row pass-row-final" data-step-index="${lastIdx}">
+          <div class="pass-row-label">end of Pass ${gi + 1} — next element locked in place</div>
+          <div class="mini-array">${miniBoxesHtml(finalSnap)}</div>
+        </div>`);
+
+      return `<div class="pass-divider">Pass ${gi + 1}</div>${rows.join('')}`;
+    }).join('');
+  }
+
+  function highlightPassLog(n){
+    if (!els.passLog) return;
+    const rows = els.passLog.querySelectorAll('.pass-row[data-step-index]');
+    let currentRow = null, bestIdx = -1;
+    rows.forEach(row => {
+      const idx = parseInt(row.dataset.stepIndex, 10);
+      row.classList.remove('done', 'current');
+      if (idx <= n - 1){
+        row.classList.add('done');
+        if (idx > bestIdx){ bestIdx = idx; currentRow = row; }
+      }
+    });
+    if (currentRow){
+      currentRow.classList.remove('done');
+      currentRow.classList.add('current');
+      currentRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
+
+  // ---------------- rendering: index-box array (with FLIP swap animation) ----------------
+  function renderBoxes(arr, highlight){
+    highlight = highlight || {};
+    const container = els.arrayBoxes;
+    const doSwapAnim = highlight.swap && highlight.swap.length === 2;
+
+    // capture old on-screen positions before we rebuild, so a swap can
+    // animate FROM its previous slot TO its new one (FLIP technique)
+    const oldRects = {};
+    if (doSwapAnim){
+      container.querySelectorAll('.array-box').forEach((box) => {
+        oldRects[box.dataset.i] = box.getBoundingClientRect();
+      });
+    }
+
+    container.innerHTML = '';
+    const sortedSet = highlight.sortedSet || new Set();
+    arr.forEach((val, i) => {
+      const box = document.createElement('div');
+      box.className = 'array-box';
+      box.dataset.i = i;
+      if (highlight.compare && highlight.compare.includes(i)) box.classList.add('compare');
+      if (highlight.swap && highlight.swap.includes(i)) box.classList.add('swap');
+      if (highlight.pivot && highlight.pivot.includes(i)) box.classList.add('pivot');
+      if (sortedSet.has(i)) box.classList.add('sorted');
+      box.innerHTML = `<span class="idx">${i}</span><span class="val">${val}</span>`;
+      container.appendChild(box);
+    });
+
+    if (doSwapAnim){
+      const [ia, ib] = highlight.swap;
+      const boxA = container.querySelector(`.array-box[data-i="${ia}"]`);
+      const boxB = container.querySelector(`.array-box[data-i="${ib}"]`);
+      if (boxA && boxB && oldRects[ia] && oldRects[ib]){
+        const newRectA = boxA.getBoundingClientRect();
+        const newRectB = boxB.getBoundingClientRect();
+        const dxA = oldRects[ib].left - newRectA.left;
+        const dxB = oldRects[ia].left - newRectB.left;
+        [[boxA, dxA], [boxB, dxB]].forEach(([box, dx]) => {
+          box.style.transition = 'none';
+          box.style.transform = `translateX(${dx}px)`;
+          void box.offsetWidth; // force reflow to lock in the starting position
+          box.style.transition = '';
+          requestAnimationFrame(() => { box.style.transform = ''; });
+        });
+
+        // curved "from this place → to this place" swap arcs: one arc per
+        // element showing the exact path it travelled, arrowhead at its
+        // new slot, so it's clear which element went where.
+        drawSwapArcs(container, oldRects[ia], newRectB, oldRects[ib], newRectA);
+      }
+    }
+  }
+
+  // draws two curved arrows over the array: fromA->toA (the element that was
+  // at ia, now sitting where ib used to be) and fromB->toB (the reverse).
+  // Drawn at two different arc heights so the opposite-direction paths
+  // don't sit on top of one another.
+  function drawSwapArcs(container, fromA, toA, fromB, toB){
+    const containerRect = container.getBoundingClientRect();
+    const svgNS = 'http://www.w3.org/2000/svg';
+
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('class', 'swap-arc-svg');
+    svg.setAttribute('width', containerRect.width);
+    svg.setAttribute('height', containerRect.height + 30);
+    svg.style.position = 'absolute';
+    svg.style.left = '0';
+    svg.style.top = '-30px';
+    svg.style.overflow = 'visible';
+    svg.style.pointerEvents = 'none';
+
+    const defs = document.createElementNS(svgNS, 'defs');
+    defs.innerHTML =
+      `<marker id="swapArrowHeadHi" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+         <path d="M0,0 L6,3 L0,6 Z" fill="#FF9E9E"/>
+       </marker>
+       <marker id="swapArrowHeadLo" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+         <path d="M0,0 L6,3 L0,6 Z" fill="#FF6B6B"/>
+       </marker>`;
+    svg.appendChild(defs);
+
+    function centerX(rect){ return rect.left - containerRect.left + rect.width / 2; }
+
+    function addArc(fromRect, toRect, arcHeight, markerId, color){
+      const x1 = centerX(fromRect);
+      const x2 = centerX(toRect);
+      const baseY = 30; // relative to svg top (which is shifted -30px above container)
+      const peakY = baseY - arcHeight;
+      const midX = (x1 + x2) / 2;
+      const path = document.createElementNS(svgNS, 'path');
+      path.setAttribute('d', `M ${x1} ${baseY} Q ${midX} ${peakY} ${x2} ${baseY}`);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', color);
+      path.setAttribute('stroke-width', '2.2');
+      path.setAttribute('marker-end', `url(#${markerId})`);
+      path.setAttribute('class', 'swap-arc-path');
+      svg.appendChild(path);
+    }
+
+    addArc(fromA, toA, 26, 'swapArrowHeadHi', '#FF9E9E');
+    addArc(fromB, toB, 13, 'swapArrowHeadLo', '#FF6B6B');
+
+    container.appendChild(svg);
+    setTimeout(() => svg.remove(), 700);
+  }
+
+  // full-screen confetti-burst celebration, fired once when the array
+  // first becomes fully sorted (not on every re-render while already sorted)
+  function celebrateSorted(){
+    const colors = ['#34E0A1', '#5B8CFF', '#FF9552', '#A78BFA', '#FF6B6B', '#4CD9A0'];
+
+    const overlay = document.createElement('div');
+    overlay.className = 'sort-celebration-fullscreen';
+
+    const burstPoints = 7;
+    for (let b = 0; b < burstPoints; b++){
+      const originX = 10 + Math.random() * 80; // vw
+      const originY = 12 + Math.random() * 60; // vh
+      const pieces = 16;
+      for (let k = 0; k < pieces; k++){
+        const piece = document.createElement('span');
+        piece.className = 'confetti-piece';
+        const angle = (k / pieces) * Math.PI * 2 + Math.random() * 0.5;
+        const dist = 90 + Math.random() * 170;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist + 60; // slight downward drift like gravity
+        piece.style.left = originX + 'vw';
+        piece.style.top = originY + 'vh';
+        piece.style.setProperty('--dx', dx + 'px');
+        piece.style.setProperty('--dy', dy + 'px');
+        piece.style.setProperty('--rot', (Math.random() * 720 - 360) + 'deg');
+        piece.style.animationDelay = (b * 70) + 'ms';
+        piece.style.background = colors[(k + b) % colors.length];
+        overlay.appendChild(piece);
+      }
+    }
+
+    const label = document.createElement('div');
+    label.className = 'sort-celebration-label';
+    label.textContent = 'Sorted!';
+    overlay.appendChild(label);
+
+    document.body.appendChild(overlay);
+    setTimeout(() => overlay.remove(), 2000);
+  }
+
+  // ---------------- merge sort: recursion tree diagram ----------------
+  // Only used when currentAlgo === 'merge'. Builds the full divide/merge
+  // tree once per array and renders it as a static diagram (with arrows)
+  // instead of animating step-by-step — the normal array boxes above still
+  // play through comparisons/writes step-by-step as usual.
+  let mergeTreeRoot = null;
+  let mergeTreeCellEls = null;
+
+  function assignTreeDepths(root){
+    let maxLeafDepth = 0;
+    function walk(node, depth){
+      node.depth = depth;
+      if (!node.left){
+        maxLeafDepth = Math.max(maxLeafDepth, depth);
+        return;
+      }
+      walk(node.left, depth + 1);
+      walk(node.right, depth + 1);
+    }
+    walk(root, 0);
+    return maxLeafDepth;
+  }
+
+  function renderMergeTree(){
+    const grid = els.mergeTreeGrid;
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const isTim = currentAlgo === 'tim';
+    const root = isTim ? buildTimTree(baseArraySnapshot) : buildMergeTree(baseArraySnapshot);
+    const maxLeafDepth = assignTreeDepths(root);
+    const totalRows = 2 * maxLeafDepth + (isTim ? 3 : 1);
+    const n = root.hi - root.lo;
+
+    grid.style.gridTemplateColumns = `repeat(${n}, minmax(30px, 1fr))`;
+    grid.style.gridTemplateRows = `repeat(${totalRows}, auto)`;
+
+    const cellEls = {};
+
+    function makeCell(node, kind, values, rowIndex, label){
+      const cell = document.createElement('div');
+      cell.className = 'tree-node' + (kind === 'merge' ? ' tree-node-merge' : ' tree-node-divide');
+      cell.style.gridColumn = `${node.lo + 1} / ${node.hi + 1}`;
+      cell.style.gridRow = `${rowIndex + 1}`;
+      if (label){
+        const lab = document.createElement('div');
+        lab.className = 'tree-node-label';
+        lab.textContent = label;
+        cell.appendChild(lab);
+      }
+      const box = document.createElement('div');
+      box.className = 'tree-node-box';
+      const row = document.createElement('div');
+      row.className = 'tree-mini-array';
+      const idxRow = document.createElement('div');
+      idxRow.className = 'tree-mini-idx';
+      values.forEach((v, pos) => {
+        const b = document.createElement('span');
+        b.className = 'mini-box';
+        b.textContent = v;
+        row.appendChild(b);
+
+        const ix = document.createElement('span');
+        ix.className = 'mini-idx';
+        ix.textContent = kind === 'divide' ? (node.lo + pos) : '';
+        idxRow.appendChild(ix);
+      });
+      box.appendChild(row);
+      if (kind === 'divide') box.appendChild(idxRow);
+      cell.appendChild(box);
+      grid.appendChild(cell);
+      cellEls[`${node.id}:${kind}`] = cell;
+    }
+
+    function walk(node){
+      const isLeaf = !node.left;
+      if (isLeaf && node.isRun){
+        makeCell(node, 'divide', node.values, node.depth, `run [${node.lo}..${node.hi - 1}] → insertion sort`);
+        makeCell(node, 'merge', node.mergedValues, totalRows - 1 - node.depth, null);
+        return;
+      }
+      if (isLeaf){
+        makeCell(node, 'divide', node.values, node.depth, null);
+        cellEls[`${node.id}:merge`] = cellEls[`${node.id}:divide`];
+        return;
+      }
+      const label = `low=${node.lo}, high=${node.hi - 1} → mid=${node.mid - 1}`;
+      makeCell(node, 'divide', node.values, node.depth, label);
+      walk(node.left);
+      walk(node.right);
+      const mergeRow = totalRows - 1 - node.depth;
+      makeCell(node, 'merge', node.mergedValues, mergeRow, null);
+    }
+    walk(root);
+
+    mergeTreeRoot = root;
+    mergeTreeCellEls = cellEls;
+    requestAnimationFrame(drawMergeTreeArrows);
+  }
+
+  function drawMergeTreeArrows(){
+    const wrap = els.mergeTreeWrap;
+    if (!wrap || !mergeTreeRoot || !mergeTreeCellEls) return;
+    const old = wrap.querySelector('.tree-arrow-svg');
+    if (old) old.remove();
+
+    const containerRect = wrap.getBoundingClientRect();
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('class', 'tree-arrow-svg');
+    svg.setAttribute('width', wrap.scrollWidth);
+    svg.setAttribute('height', wrap.scrollHeight);
+
+    const defs = document.createElementNS(svgNS, 'defs');
+    defs.innerHTML =
+      `<marker id="treeArrowHeadDivide" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+         <path d="M0,0 L8,4 L0,8 Z" fill="#5B8CFF"/>
+       </marker>
+       <marker id="treeArrowHeadMerge" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+         <path d="M0,0 L8,4 L0,8 Z" fill="#34E0A1"/>
+       </marker>`;
+    svg.appendChild(defs);
+
+    function point(rect, anchor){
+      const x = rect.left - containerRect.left + wrap.scrollLeft + rect.width / 2;
+      const y = (anchor === 'bottom' ? rect.bottom : rect.top) - containerRect.top + wrap.scrollTop;
+      return { x, y };
+    }
+
+    function drawLine(fromEl, toEl, color, markerId){
+      if (!fromEl || !toEl || fromEl === toEl) return;
+      const p1 = point(fromEl.getBoundingClientRect(), 'bottom');
+      const p2 = point(toEl.getBoundingClientRect(), 'top');
+      const midY = (p1.y + p2.y) / 2;
+      const path = document.createElementNS(svgNS, 'path');
+      path.setAttribute('d', `M ${p1.x} ${p1.y} C ${p1.x} ${midY}, ${p2.x} ${midY}, ${p2.x} ${p2.y}`);
+      path.setAttribute('stroke', color);
+      path.setAttribute('stroke-width', '1.6');
+      path.setAttribute('fill', 'none');
+      path.setAttribute('marker-end', `url(#${markerId})`);
+      path.setAttribute('class', 'tree-arrow-path');
+      svg.appendChild(path);
+    }
+
+    function walk(node){
+      if (!node.left){
+        if (node.isRun) drawLine(mergeTreeCellEls[`${node.id}:divide`], mergeTreeCellEls[`${node.id}:merge`], '#34E0A1', 'treeArrowHeadMerge');
+        return;
+      }
+
+      const parentDivideEl = mergeTreeCellEls[`${node.id}:divide`];
+      drawLine(parentDivideEl, mergeTreeCellEls[`${node.left.id}:divide`], '#5B8CFF', 'treeArrowHeadDivide');
+      drawLine(parentDivideEl, mergeTreeCellEls[`${node.right.id}:divide`], '#5B8CFF', 'treeArrowHeadDivide');
+
+      walk(node.left);
+      walk(node.right);
+
+      const parentMergeEl = mergeTreeCellEls[`${node.id}:merge`];
+      drawLine(mergeTreeCellEls[`${node.left.id}:merge`], parentMergeEl, '#34E0A1', 'treeArrowHeadMerge');
+      drawLine(mergeTreeCellEls[`${node.right.id}:merge`], parentMergeEl, '#34E0A1', 'treeArrowHeadMerge');
+    }
+    walk(mergeTreeRoot);
+
+    wrap.appendChild(svg);
+  }
+
+  // ---------------- quick sort: partition recursion tree ----------------
+  // Only used when currentAlgo === 'quick'. Same visual language as the
+  // merge tree (grid of boxes + arrows), but there's only a divide phase —
+  // Quick Sort has no separate merge step, since it sorts in place while
+  // partitioning. The pivot is highlighted in each node, and branches split
+  // into "less than pivot" / "greater than pivot" instead of even halves.
+  let quickTreeRoot = null;
+  let quickTreeCellEls = null;
+
+  function assignQuickDepths(root){
+    function walk(node, depth){
+      node.depth = depth;
+      if (node.left) walk(node.left, depth + 1);
+      if (node.right) walk(node.right, depth + 1);
+    }
+    walk(root, 0);
+  }
+
+  function renderQuickTree(){
+    const grid = els.quickTreeGrid;
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const { root, sortedArray } = buildQuickTree(baseArraySnapshot);
+    assignQuickDepths(root);
+    const n = baseArraySnapshot.length;
+
+    grid.style.gridTemplateColumns = `repeat(${n}, minmax(30px, 1fr))`;
+    grid.style.gridTemplateRows = 'auto';
+
+    const cellEls = {};
+
+    function makeCell(node){
+      const cell = document.createElement('div');
+      cell.className = 'tree-node tree-node-divide';
+      cell.style.gridColumn = `${node.lo + 1} / ${node.hi + 2}`;
+      cell.style.gridRow = `${node.depth + 1}`;
+
+      const isLeaf = node.pivotValue === null;
+      if (!isLeaf){
+        const lab = document.createElement('div');
+        lab.className = 'tree-node-label';
+        lab.textContent = `pivot=a[${node.lo}]=${node.pivotValue} → locked at ${node.pivotIndex}`;
+        cell.appendChild(lab);
+      }
+
+      const box = document.createElement('div');
+      box.className = 'tree-node-box';
+      const row = document.createElement('div');
+      row.className = 'tree-mini-array';
+      const idxRow = document.createElement('div');
+      idxRow.className = 'tree-mini-idx';
+      node.values.forEach((v, pos) => {
+        const b = document.createElement('span');
+        b.className = 'mini-box';
+        if (!isLeaf && (node.lo + pos) === node.lo) b.classList.add('tree-pivot-box');
+        b.textContent = v;
+        row.appendChild(b);
+
+        const ix = document.createElement('span');
+        ix.className = 'mini-idx';
+        ix.textContent = node.lo + pos;
+        idxRow.appendChild(ix);
+      });
+      box.appendChild(row);
+      box.appendChild(idxRow);
+      cell.appendChild(box);
+
+      grid.appendChild(cell);
+      cellEls[node.id] = cell;
+    }
+
+    function walk(node){
+      makeCell(node);
+      if (node.left) walk(node.left);
+      if (node.right) walk(node.right);
+    }
+    walk(root);
+
+    quickTreeRoot = root;
+    quickTreeCellEls = cellEls;
+    requestAnimationFrame(drawQuickTreeArrows);
+
+    if (els.quickTreeFinalRow){
+      els.quickTreeFinalRow.innerHTML = sortedArray.map(v => `<span class="mini-box">${v}</span>`).join('');
+    }
+  }
+
+  function drawQuickTreeArrows(){
+    const wrap = els.quickTreeWrap;
+    if (!wrap || !quickTreeRoot || !quickTreeCellEls) return;
+    const old = wrap.querySelector('.tree-arrow-svg');
+    if (old) old.remove();
+
+    const containerRect = wrap.getBoundingClientRect();
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('class', 'tree-arrow-svg');
+    svg.setAttribute('width', wrap.scrollWidth);
+    svg.setAttribute('height', wrap.scrollHeight);
+
+    const defs = document.createElementNS(svgNS, 'defs');
+    defs.innerHTML =
+      `<marker id="quickArrowHead" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+         <path d="M0,0 L8,4 L0,8 Z" fill="#5B8CFF"/>
+       </marker>`;
+    svg.appendChild(defs);
+
+    function point(rect, anchor){
+      const x = rect.left - containerRect.left + wrap.scrollLeft + rect.width / 2;
+      const y = (anchor === 'bottom' ? rect.bottom : rect.top) - containerRect.top + wrap.scrollTop;
+      return { x, y };
+    }
+
+    function drawLine(fromEl, toEl){
+      if (!fromEl || !toEl) return;
+      const p1 = point(fromEl.getBoundingClientRect(), 'bottom');
+      const p2 = point(toEl.getBoundingClientRect(), 'top');
+      const midY = (p1.y + p2.y) / 2;
+      const path = document.createElementNS(svgNS, 'path');
+      path.setAttribute('d', `M ${p1.x} ${p1.y} C ${p1.x} ${midY}, ${p2.x} ${midY}, ${p2.x} ${p2.y}`);
+      path.setAttribute('stroke', '#5B8CFF');
+      path.setAttribute('stroke-width', '1.6');
+      path.setAttribute('fill', 'none');
+      path.setAttribute('marker-end', 'url(#quickArrowHead)');
+      path.setAttribute('class', 'tree-arrow-path');
+      svg.appendChild(path);
+    }
+
+    function walk(node){
+      const parentEl = quickTreeCellEls[node.id];
+      if (node.left){ drawLine(parentEl, quickTreeCellEls[node.left.id]); walk(node.left); }
+      if (node.right){ drawLine(parentEl, quickTreeCellEls[node.right.id]); walk(node.right); }
+    }
+    walk(quickTreeRoot);
+
+    wrap.appendChild(svg);
+  }
+
+  // ---------------- working diagrams (bubble, selection, insertion, comb, cocktail,
+  // gnome, oddeven, bitonic, stooge, cycle, counting, pigeonhole, radix, bucket, tree) ----------------
+  // All drawing lives in assets/workflow.js; merge/tim, quick, heap and shell keep their own diagrams above.
+  const PASS_ALGOS = (window.SortWorkflow && SortWorkflow.algos) || [];
+
+  function renderPassWork(){
+    const container = els.passWorkStages;
+    if (!container) return;
+    container.innerHTML = '';
+    const m = window.SortWorkflow && SortWorkflow.meta(currentAlgo);
+    if (!m) return;
+    els.passWorkTitle.textContent = m.title;
+    els.passWorkSub.textContent = m.sub;
+    const lg = document.getElementById('passWorkLegend');
+    if (lg) lg.innerHTML = m.legend.map(x => `<div class="legend-item"><span class="swatch" style="background:${x[0]}"></span>${x[1]}</div>`).join('');
+    SortWorkflow.render(container, currentAlgo, baseArraySnapshot);
+  }
+
+  function updateAlgoLayout(){
+    const isMerge = currentAlgo === 'merge' || currentAlgo === 'tim';
+    const isQuick = currentAlgo === 'quick';
+    const isHeap = currentAlgo === 'heap';
+    const isShell = currentAlgo === 'shell';
+    document.body.classList.toggle('algo-merge-active', isMerge);
+    document.body.classList.toggle('algo-quick-active', isQuick);
+    document.body.classList.toggle('algo-heap-active', isHeap);
+    document.body.classList.toggle('algo-shell-active', isShell);
+    document.body.classList.toggle('algo-pass-active', PASS_ALGOS.indexOf(currentAlgo) !== -1);
+    if (isMerge) renderMergeTree();
+    if (isQuick) renderQuickTree();
+    if (isHeap){ renderHeapCreation(); renderHeapExtraction(); }
+    if (isShell) renderShellGapStages();
+    if (PASS_ALGOS.indexOf(currentAlgo) !== -1) renderPassWork();
+  }
+
+  window.addEventListener('resize', () => {
+    if (currentAlgo === 'merge' || currentAlgo === 'tim') requestAnimationFrame(drawMergeTreeArrows);
+    if (currentAlgo === 'quick') requestAnimationFrame(drawQuickTreeArrows);
+    if (currentAlgo === 'heap') requestAnimationFrame(() => { renderHeapCreation(); renderHeapExtraction(); });
+    if (currentAlgo === 'shell') requestAnimationFrame(renderShellGapStages);
+    if (PASS_ALGOS.indexOf(currentAlgo) !== -1) requestAnimationFrame(renderPassWork);
+  });
+
+  // ---------------- heap sort: "Creation" stage — full diagram ----------------
+  // Stage 1 of 2 (extraction is a separate future stage). Builds the max-heap
+  // by INSERTING elements one at a time (in original array order) and sifting
+  // each new node up past its parent while it's greater — this is a distinct
+  // construction method from the flat step list's heapify-from-middle
+  // approach, matching the user's blueprint exactly. Rendered as one static
+  // diagram per insertion, stacked top to bottom, ending in the completed heap.
+  function computeHeapLayout(n){
+    const positions = [];
+    let maxLevel = 0;
+    for (let i = 0; i < n; i++){
+      const level = Math.floor(Math.log2(i + 1));
+      maxLevel = Math.max(maxLevel, level);
+      const slotsInLevel = Math.pow(2, level);
+      const posInLevel = i - (slotsInLevel - 1);
+      const xPct = (posInLevel + 0.5) / slotsInLevel * 100;
+      positions.push({ level, xPct });
+    }
+    return { positions, maxLevel };
+  }
+
+  function drawHeapEdge(svg, fromEl, toEl, containerRect, color, width, withArrow){
+    if (!fromEl || !toEl) return;
+    const p1 = fromEl.getBoundingClientRect();
+    const p2 = toEl.getBoundingClientRect();
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', p1.left - containerRect.left + p1.width / 2);
+    line.setAttribute('y1', p1.top - containerRect.top + p1.height / 2);
+    line.setAttribute('x2', p2.left - containerRect.left + p2.width / 2);
+    line.setAttribute('y2', p2.top - containerRect.top + p2.height / 2);
+    line.setAttribute('stroke', color);
+    line.setAttribute('stroke-width', width);
+    if (withArrow) line.setAttribute('marker-end', 'url(#heapArrowHead)');
+    svg.appendChild(line);
+  }
+
+  function renderHeapCreation(){
+    const container = els.heapCreationStages;
+    if (!container) return;
+    container.innerHTML = '';
+
+    const stages = buildHeapCreationStages(baseArraySnapshot);
+    const rowHeight = 66;
+    const pendingSvgJobs = [];
+
+    stages.forEach(stage => {
+      const block = document.createElement('div');
+      block.className = 'heap-stage-block';
+
+      const header = document.createElement('div');
+      header.className = 'heap-stage-header';
+      header.textContent = `Insert a[${stage.insertedIndex}] = ${stage.insertedValue}` +
+        (stage.swaps.length
+          ? ` — greater than parent, sifts up ${stage.swaps.length} level${stage.swaps.length > 1 ? 's' : ''}`
+          : ` — not greater than parent, stays in place`);
+      block.appendChild(header);
+
+      const canvas = document.createElement('div');
+      canvas.className = 'heap-tree-canvas';
+      const n = stage.snapshot.length;
+      const { positions, maxLevel } = computeHeapLayout(n);
+      canvas.style.height = ((maxLevel + 1) * rowHeight + 40) + 'px';
+
+      const finalSlot = stage.swaps.length ? stage.swaps[stage.swaps.length - 1].parentIndex : (n - 1);
+      const nodeEls = {};
+      for (let i = 0; i < n; i++){
+        const pos = positions[i];
+        const node = document.createElement('div');
+        node.className = 'heap-node';
+        if (i === finalSlot) node.classList.add('pivot');
+        node.style.left = pos.xPct + '%';
+        node.style.top = (pos.level * rowHeight + 20) + 'px';
+        node.textContent = stage.snapshot[i];
+        canvas.appendChild(node);
+        nodeEls[i] = node;
+      }
+      block.appendChild(canvas);
+      container.appendChild(block);
+
+      pendingSvgJobs.push(() => {
+        const canvasRect = canvas.getBoundingClientRect();
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', 'heap-edge-svg');
+        svg.setAttribute('width', canvasRect.width);
+        svg.setAttribute('height', canvas.offsetHeight);
+
+        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        defs.innerHTML = `<marker id="heapArrowHead" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 Z" fill="#FF9E9E"/>
+          </marker>`;
+        svg.appendChild(defs);
+
+        for (let i = 0; i < n; i++){
+          [2 * i + 1, 2 * i + 2].forEach(c => {
+            if (c < n) drawHeapEdge(svg, nodeEls[i], nodeEls[c], canvasRect, '#2A3560', 1.4, false);
+          });
+        }
+        stage.swaps.forEach(sw => {
+          drawHeapEdge(svg, nodeEls[sw.childIndex], nodeEls[sw.parentIndex], canvasRect, '#FF9E9E', 2, true);
+        });
+
+        canvas.insertBefore(svg, canvas.firstChild);
+      });
+    });
+
+    const finalBlock = document.createElement('div');
+    finalBlock.className = 'heap-stage-block heap-stage-final';
+    const label = document.createElement('div');
+    label.className = 'heap-stage-header heap-stage-final-label';
+    label.textContent = 'Creation Completed — final heap array';
+    finalBlock.appendChild(label);
+    const row = document.createElement('div');
+    row.className = 'tree-final-array';
+    const lastSnapshot = stages.length ? stages[stages.length - 1].snapshot : baseArraySnapshot.slice();
+    row.innerHTML = lastSnapshot.map(v => `<span class="mini-box">${v}</span>`).join('');
+    finalBlock.appendChild(row);
+    container.appendChild(finalBlock);
+
+    requestAnimationFrame(() => pendingSvgJobs.forEach(job => job()));
+  }
+
+  function renderHeapExtraction(){
+    const container = els.heapExtractionStages;
+    if (!container) return;
+    container.innerHTML = '';
+
+    const creationStages = buildHeapCreationStages(baseArraySnapshot);
+    const heapAfterCreation = creationStages.length ? creationStages[creationStages.length - 1].snapshot : baseArraySnapshot.slice();
+    const { stages, sortedArray } = buildHeapExtractionStages(heapAfterCreation);
+
+    const rowHeight = 66;
+    const pendingSvgJobs = [];
+
+    stages.forEach(stage => {
+      const block = document.createElement('div');
+      block.className = 'heap-stage-block';
+
+      const header = document.createElement('div');
+      header.className = 'heap-stage-header';
+      header.textContent = `Remove root (${stage.rootVal}) → swap with last (${stage.lastVal}) → ${stage.rootVal} locked at index ${stage.sortedIndex}` +
+        (stage.siftSwaps.length
+          ? `, then sifts down ${stage.siftSwaps.length} level${stage.siftSwaps.length > 1 ? 's' : ''} to restore the heap`
+          : `, heap already valid`);
+      block.appendChild(header);
+
+      const canvas = document.createElement('div');
+      canvas.className = 'heap-tree-canvas';
+      const n = stage.activeSizeBefore;
+      const { positions, maxLevel } = computeHeapLayout(n);
+      canvas.style.height = ((maxLevel + 1) * rowHeight + 40) + 'px';
+
+      // indices 0..n-2 hold the restored heap (post sift-down); the last
+      // slot holds the value that was just extracted, now locked in place
+      const renderValues = stage.afterSnapshot.concat([stage.rootVal]);
+      const nodeEls = {};
+      for (let i = 0; i < n; i++){
+        const pos = positions[i];
+        const node = document.createElement('div');
+        node.className = 'heap-node';
+        if (i === n - 1) node.classList.add('sorted-heap');
+        node.style.left = pos.xPct + '%';
+        node.style.top = (pos.level * rowHeight + 20) + 'px';
+        node.textContent = renderValues[i];
+        canvas.appendChild(node);
+        nodeEls[i] = node;
+      }
+      block.appendChild(canvas);
+      container.appendChild(block);
+
+      pendingSvgJobs.push(() => {
+        const canvasRect = canvas.getBoundingClientRect();
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', 'heap-edge-svg');
+        svg.setAttribute('width', canvasRect.width);
+        svg.setAttribute('height', canvas.offsetHeight);
+
+        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        defs.innerHTML = `<marker id="heapArrowHead" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 Z" fill="#FF9E9E"/>
+          </marker>`;
+        svg.appendChild(defs);
+
+        for (let i = 0; i < n; i++){
+          [2 * i + 1, 2 * i + 2].forEach(c => {
+            if (c < n) drawHeapEdge(svg, nodeEls[i], nodeEls[c], canvasRect, '#2A3560', 1.4, false);
+          });
+        }
+        // the extraction swap: root <-> last active slot
+        if (n > 1) drawHeapEdge(svg, nodeEls[0], nodeEls[n - 1], canvasRect, '#FF9E9E', 2, true);
+        // sift-down swaps that restore the heap afterward
+        stage.siftSwaps.forEach(sw => {
+          drawHeapEdge(svg, nodeEls[sw.from], nodeEls[sw.to], canvasRect, '#FF9E9E', 2, true);
+        });
+
+        canvas.insertBefore(svg, canvas.firstChild);
+      });
+    });
+
+    const finalBlock = document.createElement('div');
+    finalBlock.className = 'heap-stage-block heap-stage-final';
+    const label = document.createElement('div');
+    label.className = 'heap-stage-header heap-stage-final-label';
+    label.textContent = 'Extraction Completed — fully sorted array';
+    finalBlock.appendChild(label);
+    const row = document.createElement('div');
+    row.className = 'tree-final-array';
+    row.innerHTML = sortedArray.map(v => `<span class="mini-box">${v}</span>`).join('');
+    finalBlock.appendChild(row);
+    container.appendChild(finalBlock);
+
+    requestAnimationFrame(() => pendingSvgJobs.forEach(job => job()));
+  }
+
+  // ---------------- shell sort: gap-by-gap pass diagram ----------------
+  // Only used when currentAlgo === 'shell'. Traces every single gapped
+  // comparison as its own row — array state at that moment, a bracket
+  // arrow under the two positions being compared ('gap' apart), and a
+  // swap/no-swap label — the same step-by-step style as a hand-worked
+  // Shell Sort trace. Each gap value ends with a "Pass completed" line,
+  // and the whole diagram ends with the final sorted array.
+  function buildShellGapStages(inputArr){
+    const a = inputArr.slice();
+    const n = a.length;
+    const stages = [];
+    for (let gap = Math.floor(n/2); gap > 0; gap = Math.floor(gap/2)){
+      const events = [];
+      for (let i = gap; i < n; i++){
+        let j = i;
+        while (j >= gap){
+          const before = a.slice();
+          if (a[j-gap] > a[j]){
+            const tmp = a[j-gap]; a[j-gap] = a[j]; a[j] = tmp;
+            events.push({ from:j-gap, to:j, swapped:true, snapshot: before });
+            j -= gap;
+          } else {
+            events.push({ from:j-gap, to:j, swapped:false, snapshot: before });
+            break;
+          }
+        }
+      }
+      stages.push({ gap, events, snapshotAfter: a.slice() });
+    }
+    return { stages, sortedArray: a.slice() };
+  }
+
+  function renderShellGapStages(){
+    const container = els.shellGapStages;
+    if (!container) return;
+    container.innerHTML = '';
+
+    const { stages, sortedArray } = buildShellGapStages(baseArraySnapshot);
+    const pendingSvgJobs = [];
+
+    function drawBracketRow(parentEl, snapshotArr, from, to, swapped){
+      const canvasWrap = document.createElement('div');
+      canvasWrap.className = 'shell-gap-canvas';
+
+      const row = document.createElement('div');
+      row.className = 'tree-mini-array';
+      const boxEls = {};
+      snapshotArr.forEach((v, i) => {
+        const b = document.createElement('span');
+        b.className = 'mini-box';
+        if (i === from || i === to) b.classList.add(swapped ? 'swap' : 'compare');
+        b.textContent = v;
+        row.appendChild(b);
+        boxEls[i] = b;
+      });
+      canvasWrap.appendChild(row);
+
+      const label = document.createElement('span');
+      label.className = 'shell-event-label ' + (swapped ? 'is-swap' : 'is-nowap');
+      label.textContent = swapped ? `swap (arr[${from}] > arr[${to}])` : `in order, no swap`;
+      canvasWrap.appendChild(label);
+
+      parentEl.appendChild(canvasWrap);
+
+      pendingSvgJobs.push(() => {
+        const wrapRect = canvasWrap.getBoundingClientRect();
+        const rowRect = row.getBoundingClientRect();
+        const elA = boxEls[from], elB = boxEls[to];
+        if (!elA || !elB) return;
+        const rectA = elA.getBoundingClientRect();
+        const rectB = elB.getBoundingClientRect();
+        const x1 = rectA.left - wrapRect.left + rectA.width / 2;
+        const x2 = rectB.left - wrapRect.left + rectB.width / 2;
+        const midX = (x1 + x2) / 2;
+        const color = swapped ? '#FF6B6B' : '#E2662D';
+
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(svgNS, 'svg');
+        svg.setAttribute('class', 'shell-gap-svg');
+        svg.setAttribute('width', wrapRect.width);
+        svg.setAttribute('height', 30);
+
+        const defs = document.createElementNS(svgNS, 'defs');
+        defs.innerHTML = `<marker id="shellArrow-${from}-${to}-${swapped}" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+             <path d="M0,0 L8,4 L0,8 Z" fill="${color}"/></marker>`;
+        svg.appendChild(defs);
+
+        const path = document.createElementNS(svgNS, 'path');
+        path.setAttribute('d', `M ${x1} 4 Q ${midX} 24 ${x2} 4`);
+        path.setAttribute('stroke', color);
+        path.setAttribute('stroke-width', '1.8');
+        path.setAttribute('fill', 'none');
+        path.setAttribute('marker-end', `url(#shellArrow-${from}-${to}-${swapped})`);
+        path.setAttribute('class', 'shell-arc-path');
+        svg.appendChild(path);
+
+        canvasWrap.insertBefore(svg, row);
+      });
+    }
+
+    stages.forEach(stage => {
+      const swapCount = stage.events.filter(e => e.swapped).length;
+      const block = document.createElement('div');
+      block.className = 'heap-stage-block';
+
+      const header = document.createElement('div');
+      header.className = 'heap-stage-header';
+      header.textContent = `Gap = ${stage.gap} — ${stage.events.length} comparison${stage.events.length!==1?'s':''}, ${swapCount} swap${swapCount!==1?'s':''}`;
+      block.appendChild(header);
+
+      stage.events.forEach(ev => {
+        drawBracketRow(block, ev.snapshot, ev.from, ev.to, ev.swapped);
+      });
+
+      const doneLabel = document.createElement('div');
+      doneLabel.className = 'shell-pass-done';
+      doneLabel.textContent = `Pass completed — array now: [ ${stage.snapshotAfter.join(', ')} ]`;
+      block.appendChild(doneLabel);
+
+      container.appendChild(block);
+    });
+
+    const finalBlock = document.createElement('div');
+    finalBlock.className = 'heap-stage-block';
+    const finalHeader = document.createElement('div');
+    finalHeader.className = 'heap-stage-header';
+    finalHeader.textContent = 'Final result — gap = 1 pass complete';
+    finalBlock.appendChild(finalHeader);
+    const finalRow = document.createElement('div');
+    finalRow.className = 'tree-mini-array';
+    sortedArray.forEach(v => {
+      const b = document.createElement('span');
+      b.className = 'mini-box sorted';
+      b.textContent = v;
+      finalRow.appendChild(b);
+    });
+    finalBlock.appendChild(finalRow);
+    const sortedTag = document.createElement('div');
+    sortedTag.className = 'shell-pass-done';
+    sortedTag.textContent = 'sorted ✓';
+    finalBlock.appendChild(sortedTag);
+    container.appendChild(finalBlock);
+
+    requestAnimationFrame(() => pendingSvgJobs.forEach(job => job()));
+  }
+
+  function updateStats(comparisons, swaps){
+    els.statCompare.textContent = comparisons;
+    els.statSwap.textContent = swaps;
+    els.statStep.textContent = `${stepIndex} / ${steps.length}`;
+  }
+
+  function setStatus(text){ els.statStatus.textContent = text; }
+
+  function clearConsole(){ els.consoleLog.innerHTML = ''; }
+
+  function logLine(entry){
+    const div = document.createElement('div');
+    div.className = 'console-line ' + (entry.kind || '');
+    div.innerHTML = entry.tag ? `<span class="tag">[${entry.tag}]</span> ${entry.text}` : entry.text;
+    els.consoleLog.appendChild(div);
+    els.consoleLog.scrollTop = els.consoleLog.scrollHeight;
+  }
+
+  // ---------------- core navigation: replay from scratch to step N ----------------
+  // This makes "Previous" trivially correct: we just replay history up to N-1.
+  function goToStep(n){
+    n = Math.max(0, Math.min(steps.length, n));
+    const prevStepIndex = stepIndex;
+
+    const workingArr = baseArraySnapshot.slice();
+    const sortedSet = new Set();
+    let comparisons = 0, swaps = 0;
+    let lastHighlight = {};
+    let currentGap = null;
+
+    clearConsole();
+
+    for (let i=0;i<n;i++){
+      const step = steps[i];
+      if (step.type === 'compare'){
+        comparisons++;
+        lastHighlight = { compare:[step.i, step.j] };
+      } else if (step.type === 'swap'){
+        swaps++;
+        const tmp = workingArr[step.i]; workingArr[step.i] = workingArr[step.j]; workingArr[step.j] = tmp;
+        lastHighlight = { swap:[step.i, step.j] };
+      } else if (step.type === 'overwrite'){
+        swaps++;
+        workingArr[step.i] = step.value;
+        lastHighlight = { swap:[step.i] };
+      } else if (step.type === 'sorted'){
+        sortedSet.add(step.i);
+        lastHighlight = {};
+      } else if (step.type === 'pivot'){
+        lastHighlight = { pivot:[step.i] };
+      } else if (step.type === 'gap'){
+        currentGap = step.value;
+      }
+      const logEntry = stepLogLine(step);
+      logLine(logEntry);
+    }
+
+    array = workingArr;
+    stepIndex = n;
+    lastHighlight.sortedSet = sortedSet;
+    renderBoxes(array, lastHighlight);
+    updateStats(comparisons, swaps);
+
+    if (els.gapBadge){
+      if (currentGap !== null){
+        els.gapBadge.textContent = `gap = ${currentGap}`;
+        els.gapBadge.style.display = '';
+      } else {
+        els.gapBadge.style.display = 'none';
+      }
+    }
+
+    const lastStep = n > 0 ? steps[n-1] : null;
+    highlightCodeLines(els.codePanel, currentAlgo, lastStep ? lastStep.type : null);
+    highlightCodeLines(els.codePanelLarge, currentAlgo, lastStep ? lastStep.type : null);
+    renderVars(lastStep);
+    highlightPassLog(n);
+
+    if (n >= steps.length){
+      setStatus('sorted ✓');
+      const fullSorted = new Set(array.map((_, i) => i));
+      renderBoxes(array, { sortedSet: fullSorted });
+      if (prevStepIndex < steps.length && steps.length > 0){
+        celebrateSorted();
+      }
+    } else if (n === 0){
+      setStatus('idle');
+    } else {
+      setStatus(playing ? 'running…' : 'paused');
+    }
+  }
+
+  function stepForward(){ goToStep(stepIndex + 1); }
+  function stepBackward(){ goToStep(stepIndex - 1); }
+
+  function play(){
+    if (playing || stepIndex >= steps.length) return;
+    playing = true;
+    els.playBtn.textContent = '⏸ Pause';
+    setStatus('running…');
+    tick();
+  }
+
+  // each PASS (as grouped in the Pass-by-Pass log) takes roughly
+  // 2–3 seconds to play through, however many individual steps it
+  // contains — the Speed slider fine-tunes where in that 2–3s range
+  function tick(){
+    if (!playing) return;
+    if (stepIndex >= steps.length){ pause(); return; }
+    stepForward();
+    if (stepIndex >= steps.length){ pause(); return; }
+    const speed = parseInt(els.speedSlider.value, 10) || 4;
+    const passDurationMs = 12000 - (speed - 1) * (8000 / 9); // speed 1→12000ms, speed 10→4000ms per pass (slow motion)
+    const groupSize = stepPassSize[stepIndex - 1] || 1;
+    const delay = Math.max(90, passDurationMs / groupSize);
+    playTimer = setTimeout(tick, delay);
+  }
+
+  function pause(){
+    playing = false;
+    els.playBtn.textContent = '▶ Play';
+    if (playTimer) clearTimeout(playTimer);
+    if (stepIndex > 0 && stepIndex < steps.length) setStatus('paused');
+  }
+
+  // ---------------- custom array input ----------------
+  function showInputHint(text, isError){
+    els.inputHint.textContent = text;
+    els.inputHint.classList.toggle('error', isError);
+    els.customArrayInput.classList.toggle('input-error', isError);
+  }
+
+  function applyCustomArray(){
+    const raw = els.customArrayInput.value.trim();
+    if (!raw){ showInputHint('2–60 numbers, comma or space separated', false); return; }
+    const parts = raw.split(/[\s,]+/).filter(Boolean);
+    const nums = parts.map(p => Number(p));
+
+    if (parts.length < 2 || parts.length > 60){ showInputHint('Enter between 2 and 60 numbers', true); return; }
+    if (nums.some(n => Number.isNaN(n) || !Number.isFinite(n))){ showInputHint('Only numbers, comma or space separated please', true); return; }
+    if (nums.some(n => n < 0 || n > 999)){ showInputHint('Keep numbers between 0 and 999', true); return; }
+
+    baseArraySnapshot = nums.slice();
+    els.sizeSlider.value = Math.min(60, Math.max(8, nums.length));
+    rebuildStepsAndReset();
+    logLine({kind:'sys', tag:'SYS', text:`custom array loaded (${nums.length} elements)`});
+    showInputHint('2–60 numbers, comma or space separated', false);
+  }
+
+  // ---------------- UI wiring ----------------
+  els.generateBtn.addEventListener('click', generateArray);
+  els.playBtn.addEventListener('click', () => { playing ? pause() : play(); });
+  els.stepFwdBtn.addEventListener('click', () => { pause(); stepForward(); });
+  els.stepBackBtn.addEventListener('click', () => { pause(); stepBackward(); });
+  els.resetBtn.addEventListener('click', () => { pause(); goToStep(0); logLine({kind:'sys', tag:'SYS', text:'playback reset'}); });
+  els.sizeSlider.addEventListener('change', generateArray);
+  els.useCustomBtn.addEventListener('click', applyCustomArray);
+  els.customArrayInput.addEventListener('keydown', e => { if (e.key === 'Enter') applyCustomArray(); });
+
+  els.algoSelect.addEventListener('change', () => {
+    currentAlgo = els.algoSelect.value;
+    const url = new URL(window.location);
+    url.searchParams.set('algo', currentAlgo);
+    window.history.replaceState({}, '', url);
+    refreshHeaderForAlgo();
+    rebuildStepsAndReset();
+    logLine({kind:'sys', tag:'SYS', text:`switched algorithm to ${ALGO_DATA[currentAlgo].name}`});
+  });
+
+  els.codeExpandBtn.addEventListener('click', () => {
+    els.codeModalBackdrop.classList.add('open');
+    const activeLarge = els.codePanelLarge.querySelector('.code-line.active');
+    if (activeLarge) activeLarge.scrollIntoView({ block:'center' });
+  });
+  els.codeModalClose.addEventListener('click', () => els.codeModalBackdrop.classList.remove('open'));
+  els.codeModalBackdrop.addEventListener('click', (e) => {
+    if (e.target === els.codeModalBackdrop) els.codeModalBackdrop.classList.remove('open');
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') els.codeModalBackdrop.classList.remove('open');
+  });
+
+  function tickClock(){ els.clock.textContent = new Date().toLocaleTimeString(); }
+  setInterval(tickClock, 1000);
+  tickClock();
+
+  // ---------------- init ----------------
+  window.addEventListener('DOMContentLoaded', () => {
+    populateAlgoSelect();
+    refreshHeaderForAlgo();
+    generateArray();
+  });
+
+})();
+</script>
+
+<script src="assets/chatbot.js"></script>
+<script src="assets/tunnelfx.js"></script>
+<script src="assets/bgfx.js"></script>
+<script src="assets/streetfx.js"></script>
+<script src="assets/transitions.js"></script>
+</body>
+</html>
